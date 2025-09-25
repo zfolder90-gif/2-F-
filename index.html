@@ -1,4 +1,9 @@
-<!DOCTYPE html>
+function spawnEnemy() {
+            const waveProgress = (gameState.wave - 1) * 0.15;
+            let enemyType = 'basic';
+            
+            // Boss every 10 waves
+            if (gameState.wave % 10 === 0 && game<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -69,18 +74,21 @@
         }
 
         .tower-buttons {
-            display: flex;
-            gap: 10px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            max-width: 600px;
         }
 
         .tower-btn {
-            padding: 10px 15px;
+            padding: 8px 12px;
             border: none;
             border-radius: 8px;
             background: linear-gradient(145deg, #4CAF50, #45a049);
             color: white;
             cursor: pointer;
             font-weight: bold;
+            font-size: 12px;
             transition: all 0.3s ease;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
         }
@@ -156,13 +164,28 @@
         <div class="controls">
             <div class="tower-buttons">
                 <button class="tower-btn" id="basic-tower" data-type="basic" data-cost="50">
-                    Basic Tower ($50)
+                    Basic ($50)
                 </button>
-                <button class="tower-btn" id="heavy-tower" data-type="heavy" data-cost="100">
-                    Heavy Tower ($100)
+                <button class="tower-btn" id="heavy-tower" data-type="heavy" data-cost="120">
+                    Heavy ($120)
                 </button>
-                <button class="tower-btn" id="rapid-tower" data-type="rapid" data-cost="150">
-                    Rapid Tower ($150)
+                <button class="tower-btn" id="rapid-tower" data-type="rapid" data-cost="180">
+                    Rapid ($180)
+                </button>
+                <button class="tower-btn" id="sniper-tower" data-type="sniper" data-cost="300">
+                    Sniper ($300)
+                </button>
+                <button class="tower-btn" id="splash-tower" data-type="splash" data-cost="250">
+                    Splash ($250)
+                </button>
+                <button class="tower-btn" id="freeze-tower" data-type="freeze" data-cost="200">
+                    Freeze ($200)
+                </button>
+                <button class="tower-btn" id="poison-tower" data-type="poison" data-cost="220">
+                    Poison ($220)
+                </button>
+                <button class="tower-btn" id="laser-tower" data-type="laser" data-cost="400">
+                    Laser ($400)
                 </button>
             </div>
         </div>
@@ -181,7 +204,7 @@
         // Game state
         let gameState = {
             health: 100,
-            money: 200,
+            money: 150,
             score: 0,
             wave: 1,
             gameOver: false,
@@ -191,7 +214,7 @@
             projectiles: [],
             enemiesSpawned: 0,
             enemiesKilled: 0,
-            waveSize: 10
+            waveSize: 15
         };
 
         // Path for enemies
@@ -208,16 +231,25 @@
 
         // Tower types
         const towerTypes = {
-            basic: { cost: 50, damage: 20, range: 100, fireRate: 60, color: '#4CAF50' },
-            heavy: { cost: 100, damage: 50, range: 80, fireRate: 90, color: '#FF9800' },
-            rapid: { cost: 150, damage: 15, range: 120, fireRate: 20, color: '#2196F3' }
+            basic: { cost: 50, damage: 15, range: 90, fireRate: 60, color: '#4CAF50', type: 'single' },
+            heavy: { cost: 120, damage: 60, range: 75, fireRate: 120, color: '#FF9800', type: 'single' },
+            rapid: { cost: 180, damage: 8, range: 100, fireRate: 15, color: '#2196F3', type: 'single' },
+            sniper: { cost: 300, damage: 150, range: 200, fireRate: 180, color: '#9C27B0', type: 'single' },
+            splash: { cost: 250, damage: 40, range: 80, fireRate: 90, color: '#FF5722', type: 'splash', splashRange: 50 },
+            freeze: { cost: 200, damage: 5, range: 100, fireRate: 60, color: '#00BCD4', type: 'freeze', slowDuration: 3000, slowFactor: 0.3 },
+            poison: { cost: 220, damage: 10, range: 95, fireRate: 45, color: '#8BC34A', type: 'poison', poisonDamage: 3, poisonDuration: 5000 },
+            laser: { cost: 400, damage: 80, range: 150, fireRate: 30, color: '#E91E63', type: 'laser' }
         };
 
         // Enemy types
         const enemyTypes = {
-            basic: { health: 50, speed: 2, reward: 10, color: '#f44336' },
-            fast: { health: 30, speed: 4, reward: 15, color: '#E91E63' },
-            tank: { health: 100, speed: 1, reward: 25, color: '#9C27B0' }
+            basic: { health: 80, speed: 2.5, reward: 8, color: '#f44336' },
+            fast: { health: 45, speed: 5, reward: 12, color: '#E91E63' },
+            tank: { health: 200, speed: 1.5, reward: 25, color: '#9C27B0' },
+            armored: { health: 150, speed: 2, reward: 20, color: '#607D8B', armor: 0.5 },
+            flying: { health: 60, speed: 4, reward: 15, color: '#FF9800', flying: true },
+            boss: { health: 500, speed: 1, reward: 100, color: '#000000', size: 20 },
+            swarm: { health: 25, speed: 6, reward: 5, color: '#FFEB3B', size: 8 }
         };
 
         class Tower {
@@ -228,47 +260,80 @@
                 this.config = towerTypes[type];
                 this.lastFired = 0;
                 this.target = null;
+                this.level = 1;
             }
 
             draw() {
                 // Draw range circle when selected
                 if (this.target) {
-                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
                     ctx.beginPath();
                     ctx.arc(this.x, this.y, this.config.range, 0, Math.PI * 2);
                     ctx.stroke();
                 }
 
-                // Draw tower
+                // Draw tower base
                 ctx.fillStyle = this.config.color;
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, 15, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Draw barrel
-                if (this.target) {
+                // Draw special effects
+                if (this.config.type === 'laser' && this.target) {
+                    // Draw laser beam
+                    ctx.strokeStyle = this.config.color;
+                    ctx.lineWidth = 3;
+                    ctx.setLineDash([]);
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y);
+                    ctx.lineTo(this.target.x, this.target.y);
+                    ctx.stroke();
+                    
+                    // Add glow effect
+                    ctx.strokeStyle = 'rgba(233, 30, 99, 0.5)';
+                    ctx.lineWidth = 6;
+                    ctx.stroke();
+                } else if (this.target) {
+                    // Draw barrel for other towers
                     const angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
                     ctx.strokeStyle = this.config.color;
                     ctx.lineWidth = 4;
+                    ctx.setLineDash([]);
                     ctx.beginPath();
                     ctx.moveTo(this.x, this.y);
                     ctx.lineTo(this.x + Math.cos(angle) * 20, this.y + Math.sin(angle) * 20);
                     ctx.stroke();
                 }
+
+                // Draw tower type indicator
+                ctx.fillStyle = 'white';
+                ctx.font = '10px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(this.type[0].toUpperCase(), this.x, this.y + 3);
             }
 
             update() {
                 // Find target
                 this.target = null;
                 let closestDistance = this.config.range;
+                let priorityTarget = null;
 
                 gameState.enemies.forEach(enemy => {
                     const distance = Math.sqrt((enemy.x - this.x) ** 2 + (enemy.y - this.y) ** 2);
-                    if (distance <= closestDistance) {
-                        this.target = enemy;
-                        closestDistance = distance;
+                    if (distance <= this.config.range) {
+                        // Priority targeting for sniper towers
+                        if (this.config.type === 'single' && this.type === 'sniper') {
+                            if (!priorityTarget || enemy.config.health > priorityTarget.config.health) {
+                                priorityTarget = enemy;
+                            }
+                        } else if (distance < closestDistance) {
+                            this.target = enemy;
+                            closestDistance = distance;
+                        }
                     }
                 });
+
+                if (priorityTarget) this.target = priorityTarget;
 
                 // Fire at target
                 if (this.target && Date.now() - this.lastFired > this.config.fireRate) {
@@ -278,9 +343,45 @@
             }
 
             fire() {
-                gameState.projectiles.push(new Projectile(
-                    this.x, this.y, this.target, this.config.damage
-                ));
+                if (this.config.type === 'laser') {
+                    // Instant laser damage
+                    this.dealDamage(this.target, this.config.damage);
+                } else if (this.config.type === 'splash') {
+                    gameState.projectiles.push(new SplashProjectile(
+                        this.x, this.y, this.target, this.config.damage, this.config.splashRange
+                    ));
+                } else if (this.config.type === 'freeze') {
+                    gameState.projectiles.push(new FreezeProjectile(
+                        this.x, this.y, this.target, this.config.damage, this.config.slowDuration, this.config.slowFactor
+                    ));
+                } else if (this.config.type === 'poison') {
+                    gameState.projectiles.push(new PoisonProjectile(
+                        this.x, this.y, this.target, this.config.damage, this.config.poisonDamage, this.config.poisonDuration
+                    ));
+                } else {
+                    gameState.projectiles.push(new Projectile(
+                        this.x, this.y, this.target, this.config.damage
+                    ));
+                }
+            }
+
+            dealDamage(enemy, damage) {
+                let actualDamage = damage;
+                if (enemy.config.armor) {
+                    actualDamage *= (1 - enemy.config.armor);
+                }
+                
+                if (enemy.takeDamage(actualDamage)) {
+                    // Enemy killed
+                    gameState.money += enemy.config.reward;
+                    gameState.score += enemy.config.reward * 10;
+                    gameState.enemiesKilled++;
+                    
+                    const index = gameState.enemies.indexOf(enemy);
+                    if (index > -1) {
+                        gameState.enemies.splice(index, 1);
+                    }
+                }
             }
         }
 
@@ -288,35 +389,90 @@
             constructor(type) {
                 this.type = type;
                 this.config = enemyTypes[type];
-                this.health = this.config.health;
-                this.maxHealth = this.config.health;
+                this.health = this.config.health * (1 + (gameState.wave - 1) * 0.3);
+                this.maxHealth = this.health;
                 this.speed = this.config.speed;
                 this.pathIndex = 0;
                 this.x = path[0].x;
                 this.y = path[0].y;
                 this.progress = 0;
+                this.slowedUntil = 0;
+                this.slowFactor = 1;
+                this.poisonedUntil = 0;
+                this.poisonDamage = 0;
+                this.lastPoisonTick = 0;
             }
 
             draw() {
+                const size = this.config.size || 12;
+                
                 // Draw enemy
                 ctx.fillStyle = this.config.color;
                 ctx.beginPath();
-                ctx.arc(this.x, this.y, 12, 0, Math.PI * 2);
+                ctx.arc(this.x, this.y, size, 0, Math.PI * 2);
                 ctx.fill();
 
+                // Draw special effects
+                if (this.slowedUntil > Date.now()) {
+                    ctx.strokeStyle = '#00BCD4';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 5]);
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, size + 3, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+
+                if (this.poisonedUntil > Date.now()) {
+                    ctx.fillStyle = 'rgba(139, 195, 74, 0.5)';
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, size + 5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Draw armor indicator
+                if (this.config.armor) {
+                    ctx.strokeStyle = '#607D8B';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, size, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                // Draw flying indicator
+                if (this.config.flying) {
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                    ctx.beginPath();
+                    ctx.arc(this.x - 3, this.y - size - 5, 2, 0, Math.PI * 2);
+                    ctx.arc(this.x + 3, this.y - size - 5, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
                 // Draw health bar
-                const barWidth = 20;
+                const barWidth = size * 2;
                 const barHeight = 4;
                 const healthPercent = this.health / this.maxHealth;
 
                 ctx.fillStyle = 'red';
-                ctx.fillRect(this.x - barWidth/2, this.y - 20, barWidth, barHeight);
+                ctx.fillRect(this.x - barWidth/2, this.y - size - 10, barWidth, barHeight);
                 ctx.fillStyle = 'green';
-                ctx.fillRect(this.x - barWidth/2, this.y - 20, barWidth * healthPercent, barHeight);
+                ctx.fillRect(this.x - barWidth/2, this.y - size - 10, barWidth * healthPercent, barHeight);
             }
 
             update() {
                 if (this.pathIndex >= path.length - 1) return false;
+
+                // Apply poison damage
+                if (this.poisonedUntil > Date.now() && Date.now() - this.lastPoisonTick > 500) {
+                    this.takeDamage(this.poisonDamage);
+                    this.lastPoisonTick = Date.now();
+                }
+
+                // Apply slow effect
+                let currentSpeed = this.speed;
+                if (this.slowedUntil > Date.now()) {
+                    currentSpeed *= this.slowFactor;
+                }
 
                 const current = path[this.pathIndex];
                 const next = path[this.pathIndex + 1];
@@ -325,7 +481,7 @@
                 const dy = next.y - current.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
 
-                this.progress += this.speed / distance;
+                this.progress += currentSpeed / distance;
 
                 if (this.progress >= 1) {
                     this.pathIndex++;
@@ -347,6 +503,17 @@
                 this.health -= damage;
                 return this.health <= 0;
             }
+
+            applySlow(duration, factor) {
+                this.slowedUntil = Date.now() + duration;
+                this.slowFactor = factor;
+            }
+
+            applyPoison(damage, duration) {
+                this.poisonedUntil = Date.now() + duration;
+                this.poisonDamage = damage;
+                this.lastPoisonTick = Date.now();
+            }
         }
 
         class Projectile {
@@ -355,7 +522,7 @@
                 this.y = y;
                 this.target = target;
                 this.damage = damage;
-                this.speed = 8;
+                this.speed = 10;
             }
 
             draw() {
@@ -366,31 +533,130 @@
             }
 
             update() {
-                if (!this.target) return false;
+                if (!this.target || gameState.enemies.indexOf(this.target) === -1) return false;
 
                 const dx = this.target.x - this.x;
                 const dy = this.target.y - this.y;
                 const distance = Math.sqrt(dx * dx + dy * dy);
 
-                if (distance < 10) {
+                if (distance < 12) {
                     // Hit target
-                    if (this.target.takeDamage(this.damage)) {
-                        // Enemy killed
-                        gameState.money += this.target.config.reward;
-                        gameState.score += this.target.config.reward * 10;
-                        gameState.enemiesKilled++;
-                        
-                        const index = gameState.enemies.indexOf(this.target);
-                        if (index > -1) {
-                            gameState.enemies.splice(index, 1);
-                        }
-                    }
+                    this.hitTarget();
                     return false;
                 }
 
                 this.x += (dx / distance) * this.speed;
                 this.y += (dy / distance) * this.speed;
                 return true;
+            }
+
+            hitTarget() {
+                let actualDamage = this.damage;
+                if (this.target.config.armor) {
+                    actualDamage *= (1 - this.target.config.armor);
+                }
+                
+                if (this.target.takeDamage(actualDamage)) {
+                    // Enemy killed
+                    gameState.money += this.target.config.reward;
+                    gameState.score += this.target.config.reward * 10;
+                    gameState.enemiesKilled++;
+                    
+                    const index = gameState.enemies.indexOf(this.target);
+                    if (index > -1) {
+                        gameState.enemies.splice(index, 1);
+                    }
+                }
+            }
+        }
+
+        class SplashProjectile extends Projectile {
+            constructor(x, y, target, damage, splashRange) {
+                super(x, y, target, damage);
+                this.splashRange = splashRange;
+            }
+
+            draw() {
+                ctx.fillStyle = '#FF5722';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            hitTarget() {
+                // Create explosion effect
+                ctx.fillStyle = 'rgba(255, 87, 34, 0.3)';
+                ctx.beginPath();
+                ctx.arc(this.target.x, this.target.y, this.splashRange, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Damage all enemies in splash range
+                gameState.enemies.forEach(enemy => {
+                    const distance = Math.sqrt((enemy.x - this.target.x) ** 2 + (enemy.y - this.target.y) ** 2);
+                    if (distance <= this.splashRange) {
+                        let actualDamage = this.damage;
+                        if (distance > this.splashRange * 0.5) {
+                            actualDamage *= 0.5; // Reduced damage at edge
+                        }
+                        if (enemy.config.armor) {
+                            actualDamage *= (1 - enemy.config.armor);
+                        }
+                        
+                        if (enemy.takeDamage(actualDamage)) {
+                            // Enemy killed
+                            gameState.money += enemy.config.reward;
+                            gameState.score += enemy.config.reward * 10;
+                            gameState.enemiesKilled++;
+                        }
+                    }
+                });
+
+                // Remove dead enemies
+                gameState.enemies = gameState.enemies.filter(enemy => enemy.health > 0);
+            }
+        }
+
+        class FreezeProjectile extends Projectile {
+            constructor(x, y, target, damage, slowDuration, slowFactor) {
+                super(x, y, target, damage);
+                this.slowDuration = slowDuration;
+                this.slowFactor = slowFactor;
+            }
+
+            draw() {
+                ctx.fillStyle = '#00BCD4';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            hitTarget() {
+                super.hitTarget();
+                if (gameState.enemies.indexOf(this.target) !== -1) {
+                    this.target.applySlow(this.slowDuration, this.slowFactor);
+                }
+            }
+        }
+
+        class PoisonProjectile extends Projectile {
+            constructor(x, y, target, damage, poisonDamage, poisonDuration) {
+                super(x, y, target, damage);
+                this.poisonDamage = poisonDamage;
+                this.poisonDuration = poisonDuration;
+            }
+
+            draw() {
+                ctx.fillStyle = '#8BC34A';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            hitTarget() {
+                super.hitTarget();
+                if (gameState.enemies.indexOf(this.target) !== -1) {
+                    this.target.applyPoison(this.poisonDamage, this.poisonDuration);
+                }
             }
         }
 
@@ -412,14 +678,27 @@
         }
 
         function spawnEnemy() {
-            const waveProgress = (gameState.wave - 1) * 0.3;
+            const waveProgress = (gameState.wave - 1) * 0.15;
             let enemyType = 'basic';
             
-            const rand = Math.random();
-            if (rand < 0.1 + waveProgress) {
-                enemyType = 'tank';
-            } else if (rand < 0.3 + waveProgress) {
-                enemyType = 'fast';
+            // Boss every 10 waves
+            if (gameState.wave % 10 === 0 && gameState.enemiesSpawned < 2) {
+                enemyType = 'boss';
+            } else {
+                const rand = Math.random();
+                if (rand < 0.05 + waveProgress * 0.3) {
+                    enemyType = 'boss';
+                } else if (rand < 0.15 + waveProgress * 0.4) {
+                    enemyType = 'armored';
+                } else if (rand < 0.25 + waveProgress * 0.3) {
+                    enemyType = 'flying';
+                } else if (rand < 0.35 + waveProgress * 0.5) {
+                    enemyType = 'tank';
+                } else if (rand < 0.55 + waveProgress * 0.2) {
+                    enemyType = 'fast';
+                } else if (rand < 0.75 + waveProgress * 0.3) {
+                    enemyType = 'swarm';
+                }
             }
             
             gameState.enemies.push(new Enemy(enemyType));
@@ -429,10 +708,10 @@
         function update() {
             if (gameState.gameOver) return;
 
-            // Spawn enemies
+            // Spawn enemies more aggressively
             if (gameState.enemiesSpawned < gameState.waveSize && 
-                gameState.enemies.length < 5 && 
-                Math.random() < 0.02) {
+                gameState.enemies.length < 8 && 
+                Math.random() < 0.04 + (gameState.wave * 0.01)) {
                 spawnEnemy();
             }
 
@@ -443,7 +722,13 @@
             gameState.enemies = gameState.enemies.filter(enemy => {
                 const alive = enemy.update();
                 if (!alive) {
-                    gameState.health -= 10;
+                    // Different damage based on enemy type
+                    let damage = 10;
+                    if (enemy.type === 'boss') damage = 50;
+                    else if (enemy.type === 'tank' || enemy.type === 'armored') damage = 20;
+                    else if (enemy.type === 'flying') damage = 15;
+                    
+                    gameState.health -= damage;
                     if (gameState.health <= 0) {
                         gameState.gameOver = true;
                         document.getElementById('gameOver').style.display = 'block';
@@ -459,10 +744,10 @@
             // Check wave completion
             if (gameState.enemiesSpawned >= gameState.waveSize && gameState.enemies.length === 0) {
                 gameState.wave++;
-                gameState.waveSize += 5;
+                gameState.waveSize += 8 + Math.floor(gameState.wave / 3); // Exponential growth
                 gameState.enemiesSpawned = 0;
                 gameState.enemiesKilled = 0;
-                gameState.money += 50; // Wave bonus
+                gameState.money += 30 + (gameState.wave * 5); // Wave bonus
             }
 
             updateUI();
@@ -502,7 +787,7 @@
         function restartGame() {
             gameState = {
                 health: 100,
-                money: 200,
+                money: 150,
                 score: 0,
                 wave: 1,
                 gameOver: false,
@@ -512,7 +797,7 @@
                 projectiles: [],
                 enemiesSpawned: 0,
                 enemiesKilled: 0,
-                waveSize: 10
+                waveSize: 15
             };
             document.getElementById('gameOver').style.display = 'none';
         }
